@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Product Information</title>
+</head>
+<body>
+<div>
+    <h1>Product Information</h1>
+    <p th:inline="text">Id: [[${product.id}]]</p>
+    <p th:inline="text">Name: [[${product.name}]]</p>
+    <p th:inline="text">Price: [[${product.price}]]</p>
+    <p th:inline="text">Created: [[${product.created}]]</p>
+    <p th:inline="text">Updated: [[${product.updated}]]</p>
+
+    <form th:action="@{/product/update-page/{id}(id=${product.id})}" method="get">
+        <button type="submit">Update product</button>
+    </form>
+    <form th:action="@{/product/delete/{id}(id=${product.id})}" method="post">
+        <button type="submit">Delete product</button>
+    </form>
+</div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>User Information</title>
+</head>
+<body>
+<div>
+    <h1>User Information</h1>
+    <p th:inline="text">Id: [[${user.id}]]</p>
+    <p th:inline="text">First name: [[${user.firstname}]]</p>
+    <p th:inline="text">Second name: [[${user.secondName}]]</p>
+    <p th:inline="text">Age: [[${user.age}]]</p>
+    <p th:inline="text">Telephone number: [[${user.telephoneNumber}]]</p>
+    <p th:inline="text">Sex: [[${user.sex}]]</p>
+    <p th:inline="text">Created: [[${user.created}]]</p>
+    <p th:inline="text">Updated: [[${user.updated}]]</p>
+    <p th:inline="text">Deleted: [[${user.deleted}]]</p>
+
+    <form th:action="@{/user/update-page/{id}(id=${user.id})}" method="get">
+        <button type="submit">Update user</button>
+    </form>
+    <form th:action="@{/user/delete/{id}(id=${user.id})}" method="post">
+        <button type="submit">Delete user</button>
+    </form>
+</div>
+</body>
+</html>
