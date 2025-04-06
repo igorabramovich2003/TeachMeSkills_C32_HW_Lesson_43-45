@@ -5,8 +5,6 @@ import com.tms.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -18,36 +16,29 @@ public class ProductService {
     public ProductService(ProductRepository productRepository) {
         this.productRepository = productRepository;
     }
-    public List<Product> getAllProducts() {
-        List<Product> products = productRepository.getAllProducts();
-        System.out.println("Fetched from repository: " + (products != null ? products.size() : "null"));
-        return products == null ? new ArrayList<>() : products;
-    }
 
-    public Optional<Product> getProductById(Integer id) {
+    public Optional<Product> getProductById(Long id) {
         return productRepository.getProductById(id);
     }
-    public boolean createProduct(Product product) {
-        return productRepository.createProduct(product);
-    }
-    public boolean updateProduct(Product product) {
-        System.out.println("Received product for update in service: " + product);
-        if (product.getId() == null) {
-            System.out.println("Error: Product ID is null");
-            throw new IllegalArgumentException("Product ID cannot be null");
+
+    public Optional<Product> updateProduct(Product product){
+        Boolean result = productRepository.updateProduct(product);
+        if(result){
+            return getProductById(product.getId());
         }
-        boolean result = false;
-        try {
-            result = productRepository.updateProduct(product);
-            System.out.println("Update status from repository: " + result);
-        } catch (Exception e) {
-            System.out.println("Error while updating product in repository: " + e.getMessage());
-            e.printStackTrace();
-        }
-        return result;
+        return Optional.empty();
     }
 
-    public boolean deleteProduct(Integer id) {
+    public boolean deleteProduct(Long id) {
         return productRepository.deleteProduct(id);
+    }
+
+
+    public Optional<Product> createProduct(Product product){
+        Optional<Long> productId = productRepository.createProduct(product);
+        if(productId.isPresent()){
+            return getProductById(productId.get());
+        }
+        return Optional.empty();
     }
 }

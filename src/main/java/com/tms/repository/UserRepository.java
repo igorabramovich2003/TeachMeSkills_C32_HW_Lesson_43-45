@@ -28,6 +28,7 @@ public class UserRepository {
 
     public Optional<User> getUserById(Long id) {
         Connection connection = databaseService.getConnection();
+
         try {
             PreparedStatement getUserStatement = connection.prepareStatement(SQLQuery.GET_USER_BY_ID);
             getUserStatement.setLong(1, id);
@@ -39,35 +40,14 @@ public class UserRepository {
         }
     }
 
-    public List<User> findAllUsers() {
-        List<User> users = new ArrayList<>();
-        try (Connection connection = databaseService.getConnection();
-             Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(SQLQuery.FIND_ALL_USERS)) {
-            while (resultSet.next()) {
-                parseUser(resultSet).ifPresent(users::add);
-            }
+    public Boolean deleteUser(Long id){
+        Connection connection = databaseService.getConnection();
+        try {
+            PreparedStatement getUserStatement = connection.prepareStatement(SQLQuery.DELETE_USER);
+            getUserStatement.setLong(1, id);
+            return getUserStatement.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return users;
-    }
-
-    public Boolean deleteUser(Long id) {
-        try (Connection connection = databaseService.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement(SQLQuery.DELETE_USER)) {
-            System.out.println("Request to delete user with ID: " + id);
-            preparedStatement.setLong(1, id);
-            int rowsAffected = preparedStatement.executeUpdate();
-            if (rowsAffected > 0) {
-                System.out.println("User with ID has been successfully marked as deleted: "+ id);
-                return true;
-            } else {
-                System.out.println("User with ID was not found in the database: "+ id);
-                return false;
-            }
-        } catch (SQLException e) {
-            System.out.println("Error deleting user with ID: "+  id+ e.getMessage()+ e);
+            System.out.println(e.getMessage());
             return false;
         }
     }
@@ -75,6 +55,7 @@ public class UserRepository {
     public Optional<Long> createUser(User user){
         Connection connection = databaseService.getConnection();
         Long userId = null;
+
         try {
             PreparedStatement createUserStatement = connection.prepareStatement(SQLQuery.CREATE_USER, Statement.RETURN_GENERATED_KEYS);
             createUserStatement.setString(1, user.getFirstname());
@@ -86,6 +67,7 @@ public class UserRepository {
             createUserStatement.setString(7, user.getSex());
             createUserStatement.setBoolean(8, false);
             createUserStatement.executeUpdate();
+
             ResultSet generatedKeys = createUserStatement.getGeneratedKeys();
             if (generatedKeys.next()) {
                 userId = generatedKeys.getLong(1);
@@ -99,6 +81,7 @@ public class UserRepository {
 
     public Boolean updateUser(User user) {
         Connection connection = databaseService.getConnection();
+
         try {
             PreparedStatement getUserStatement = connection.prepareStatement(SQLQuery.UPDATE_USER);
             getUserStatement.setString(1, user.getFirstname());
@@ -131,5 +114,34 @@ public class UserRepository {
             return Optional.of(user);
         }
         return Optional.empty();
+    }
+
+    public List<User> getAllUsers() {
+        Connection connection = databaseService.getConnection();
+        List<User> users = new ArrayList<>();
+        try{
+            PreparedStatement getUserStatement = connection.prepareStatement(SQLQuery.GET_ALL_USERS);
+            ResultSet resultSet = getUserStatement.executeQuery();
+
+            while (resultSet.next()) {
+                User user = new User();
+                user.setId(resultSet.getLong("id"));
+                user.setFirstname(resultSet.getString("firstname"));
+                user.setSecondName(resultSet.getString("second_name"));
+                user.setAge(resultSet.getInt("age"));
+                user.setTelephoneNumber(resultSet.getString("telephone_number"));
+                user.setEmail(resultSet.getString("email"));
+                user.setCreated(resultSet.getTimestamp("created"));
+                user.setUpdated(resultSet.getTimestamp("updated"));
+                user.setSex(resultSet.getString("sex"));
+                user.setDeleted(resultSet.getBoolean("is_deleted"));
+
+                users.add(user);
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+
+        }
+        return users;
     }
 }

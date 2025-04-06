@@ -1,128 +1,51 @@
 package com.tms.controller;
 
-import com.tms.exception.AgeException;
-import com.tms.model.Security;
-import com.tms.model.User;
 import com.tms.model.dto.RegistrationRequestDto;
 import com.tms.service.SecurityService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.ObjectError;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Objects;
-import java.util.Optional;
-
-@Controller
+@RestController
 @RequestMapping("/security")
 public class SecurityController {
 
-    public SecurityService securityService;
+    private static final Logger logger = LoggerFactory.getLogger(SecurityController.class);
+
+    private final SecurityService securityService;
 
     @Autowired
     public SecurityController(SecurityService securityService) {
         this.securityService = securityService;
     }
 
-    @GetMapping("/registration")
-    public String registration() {
-        return "registration";
-    }
-
+    @Operation(summary = "User registration", description = "Endpoint allows to register a new user. Checks validation. In the database creates 2 new models related to each other (User, Security)")
     @PostMapping("/registration")
-    public String registration(@ModelAttribute @Valid RegistrationRequestDto requestDto,
-                               BindingResult bindingResult, Model model) {
+    public ResponseEntity<HttpStatus> registration(@RequestBody @Valid RegistrationRequestDto requestDto,
+                                                   BindingResult bindingResult) {
+        logger.info("Received registration request for user: {}", requestDto.getLogin());
+
         if (bindingResult.hasErrors()) {
-            for (ObjectError error : bindingResult.getAllErrors()) {
-                if (Objects.equals(error.getCode(), "CustomAge")) {
-                    throw new AgeException(error.getDefaultMessage());
-                }
-                System.out.println(error);
-            }
-            System.out.println(bindingResult.getAllErrors());
-            return "registration";
+            logger.warn("Validation errors occurred for user: {}", requestDto.getLogin());
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
-        Optional<User> resultUser = securityService.registration(requestDto);
-        if (resultUser.isPresent()) {
-            model.addAttribute("user", resultUser.get());
-            return "user";
+        Boolean result = securityService.registration(requestDto);
+        if (result) {
+            logger.info("User {} successfully registered", requestDto.getLogin());
+            return new ResponseEntity<>(HttpStatus.CREATED);
+        } else {
+            logger.error("Failed to register user: {}", requestDto.getLogin());
+            return new ResponseEntity<>(HttpStatus.CONFLICT);
         }
-        return "registration";
-    }
-
-    @GetMapping("/{id}")
-    public String getSecurityById(@PathVariable Long id, Model model) {
-        Optional<Security> security = securityService.getSecurityById(id);
-        if (security.isPresent()) {
-            model.addAttribute("security", security.get());
-            return "security";
-        }
-        model.addAttribute("message", "Security record not found");
-        return "innerError";
-    }
-
-    @GetMapping("/create")
-    public String getCreateSecurityPage(Model model) {
-        model.addAttribute("security", new Security());
-        return "createSecurity";
-    }
-
-    @PostMapping("/create")
-    public String createSecurity(@ModelAttribute @Valid Security security,
-                                 BindingResult bindingResult,
-                                 Model model) {
-        if (bindingResult.hasErrors()) {
-            model.addAttribute("errors", bindingResult.getAllErrors());
-            return "createSecurity";
-        }
-        Optional<Security> createdSecurity = securityService.createSecurity(security);
-        if (createdSecurity.isPresent()) {
-            model.addAttribute("security", createdSecurity.get());
-            return "security";
-        }
-        model.addAttribute("message", "Failed to create record");
-        return "innerError";
-    }
-
-    @GetMapping("/update/{id}")
-    public String getUpdateSecurityPage(@PathVariable Long id, Model model) {
-        Optional<Security> security = securityService.getSecurityById(id);
-        if (security.isPresent()) {
-            model.addAttribute("security", security.get());
-            return "editSecurity";
-        }
-        model.addAttribute("message", "Security record not found");
-        return "innerError";
-    }
-
-    @PostMapping("/update/{id}")
-    public String updateSecurity(@PathVariable Long id, @ModelAttribute @Valid Security security, Model model) {
-        security.setId(id);
-        Optional<Security> updatedSecurity = securityService.updateSecurity(security);
-        if (updatedSecurity.isPresent()) {
-            model.addAttribute("security", updatedSecurity.get());
-            return "security";
-        }
-        model.addAttribute("message", "Failed to update security record");
-        return "innerError";
-    }
-
-    @GetMapping("/delete/{id}")
-    public String deleteSecurity(@PathVariable Long id, Model model) {
-        boolean isDeleted = securityService.deleteSecurity(id);
-        if (isDeleted) {
-            model.addAttribute("message", "Security record deleted successfully");
-            return "success";
-        }
-        model.addAttribute("message", "Failed to delete security record");
-        return "innerError";
     }
 }

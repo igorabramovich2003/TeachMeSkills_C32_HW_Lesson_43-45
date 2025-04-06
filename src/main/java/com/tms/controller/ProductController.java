@@ -2,17 +2,27 @@ package com.tms.controller;
 
 import com.tms.model.Product;
 import com.tms.service.ProductService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
-@Controller
+@RestController
 @RequestMapping("/product")
+@Tag(name = "Product Controller", description = "Управление товарами")
 public class ProductController {
 
     private final ProductService productService;
@@ -22,83 +32,51 @@ public class ProductController {
         this.productService = productService;
     }
 
+    @Operation(summary = "Создание продукта", description = "Добавляет новый продукт в систему")
+    @ApiResponse(responseCode = "201", description = "Продукт успешно создан")
+    @ApiResponse(responseCode = "409", description = "Конфликт: продукт не создан")
+    @PostMapping
+    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+        Optional<Product> createdProduct = productService.createProduct(product);
+        if (createdProduct.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.CONFLICT);
+        }
+        return new ResponseEntity<>(createdProduct.get(), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "Получение продукта", description = "Возвращает продукт по ID")
+    @ApiResponse(responseCode = "200", description = "Продукт найден")
+    @ApiResponse(responseCode = "404", description = "Продукт не найден")
     @GetMapping("/{id}")
-    public String getProductById(@PathVariable Integer id, Model model) {
+    public ResponseEntity<Product> getProductById(@PathVariable("id") @Parameter(description = "Product id") Long id) {
         Optional<Product> product = productService.getProductById(id);
-        if (product.isPresent()) {
-            model.addAttribute("product", product.get());
-            return "product";
+        if (product.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        model.addAttribute("message", "Product not found");
-        return "innerError";
+        return new ResponseEntity<>(product.get(), HttpStatus.OK);
     }
 
-    @GetMapping("/allproducts")
-    public String getAllProducts(Model model) {
-        List<Product> products = productService.getAllProducts();
-        System.out.println("Fetched products: " + products);
-        if (products == null) {
-            products = new ArrayList<>();
+    @Operation(summary = "Обновление продукта", description = "Обновляет данные существующего продукта")
+    @ApiResponse(responseCode = "200", description = "Продукт успешно обновлён")
+    @ApiResponse(responseCode = "409", description = "Конфликт при обновлении продукта")
+    @PutMapping
+    public ResponseEntity<Product> updateProduct(@RequestBody Product product) {
+        Optional<Product> productUpdated = productService.updateProduct(product);
+        if (productUpdated.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.CONFLICT);
         }
-        model.addAttribute("products", products);
-        return "listProducts";
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
-    @GetMapping("/create")
-    public String getCreateProductPage(Model model) {
-        model.addAttribute("product", new Product());
-        return "createProduct";
-    }
-
-    @PostMapping("/create")
-    public String createProduct(@ModelAttribute Product product, Model model) {
-        boolean isCreated = productService.createProduct(product);
-        if (isCreated) {
-            System.out.println("Created product: " + product);
-            model.addAttribute("product", product);
-            return "product";
+    @Operation(summary = "Удаление продукта", description = "Удаляет продукт по ID")
+    @ApiResponse(responseCode = "204", description = "Продукт успешно удалён")
+    @ApiResponse(responseCode = "409", description = "Ошибка при удалении продукта")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<HttpStatus> deleteProduct(@PathVariable("id") @Parameter(description = "Product id") Long productId) {
+        boolean isDeleted = productService.deleteProduct(productId);
+        if (!isDeleted) {
+            return new ResponseEntity<>(HttpStatus.CONFLICT);
         }
-        model.addAttribute("message", "Failed to create product");
-        return "innerError";
-    }
-
-    @GetMapping("/update/{id}")
-    public String getUpdateProductPage(@PathVariable Integer id, Model model) {
-        Optional<Product> product = productService.getProductById(id);
-        if (product.isPresent()) {
-            model.addAttribute("product", product.get());
-            return "editProduct";
-        }
-        model.addAttribute("errorMessage", "Product not found with this ID");
-        return "innerError";
-    }
-
-    @PostMapping("/update/{id}")
-    public String updateProduct(@PathVariable Long id, @ModelAttribute Product product, Model model) {
-        product.setId(id);
-        try {
-            boolean updated = productService.updateProduct(product);
-            if (updated) {
-                model.addAttribute("message", "Product updated successfully");
-                return "success";
-            } else {
-                model.addAttribute("message", "Failed to update product");
-                return "innerError";
-            }
-        } catch (Exception ex) {
-            model.addAttribute("message", "Update error: " + ex.getMessage());
-            return "innerError";
-        }
-    }
-
-    @GetMapping("/delete/{id}")
-    public String deleteProduct(@PathVariable Integer id, Model model) {
-        boolean isDeleted = productService.deleteProduct(id);
-        if (isDeleted) {
-            model.addAttribute("message", "Product deleted successfully");
-            return "success";
-        }
-        model.addAttribute("message", "Failed to delete product");
-        return "innerError";
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }

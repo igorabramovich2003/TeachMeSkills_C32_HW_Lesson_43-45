@@ -22,31 +22,20 @@ public class UserService {
         return userRepository.getUserById(id);
     }
 
-    public List<User> getAllUsers() {
-        return userRepository.findAllUsers();
-    }
-    public Optional<User> updateUser(User user) {
-        Boolean updated = userRepository.updateUser(user);
-        if (updated) {
-            return userRepository.getUserById(user.getId());
+    public Optional<User> updateUser(User user){
+        Boolean result = userRepository.updateUser(user);
+        if(result){
+            return getUserById(user.getId());
         }
         return Optional.empty();
     }
 
-    public Optional<User> deleteUser(Long id) {
-        Optional<User> userOptional = userRepository.getUserById(id);
-        System.out.println("Starting the process of deleting a user with ID:"+ id);
-        if (userOptional.isEmpty()) {
-            System.out.println("User with ID not found: "+ id);
-            return Optional.empty();
+    public Optional<User> deleteUser(Long id){
+        Boolean result = userRepository.deleteUser(id);
+        if(result){
+            return getUserById(id);
         }
-        User user = userOptional.get();
-        user.setDeleted(true);
-        Boolean isDeleted = userRepository.deleteUser(id);
-        if (!isDeleted) {
-            return Optional.empty();
-        }
-        return Optional.of(user);
+        return Optional.empty();
     }
 
     public Optional<User> createUser(User user){
@@ -55,5 +44,8 @@ public class UserService {
             return getUserById(userId.get());
         }
         return Optional.empty();
+    }
+    public List<User> getAllUsers() {
+        return userRepository.getAllUsers();
     }
 }

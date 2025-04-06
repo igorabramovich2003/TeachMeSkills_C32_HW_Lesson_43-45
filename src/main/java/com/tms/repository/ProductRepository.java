@@ -1,127 +1,107 @@
 package com.tms.repository;
 
 import com.tms.config.DatabaseService;
+import com.tms.config.SQLQuery;
 import com.tms.model.Product;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
-import static com.tms.config.SQLQuery.CREATE_PRODUCT;
-import static com.tms.config.SQLQuery.DELETE_PRODUCT;
-import static com.tms.config.SQLQuery.GET_ALL_PRODUCTS;
-import static com.tms.config.SQLQuery.GET_PRODUCT_BY_ID;
-import static com.tms.config.SQLQuery.UPDATE_PRODUCT;
 
 @Repository
 public class ProductRepository {
 
     private final DatabaseService databaseService;
 
-    @Autowired
     public ProductRepository(DatabaseService databaseService) {
         this.databaseService = databaseService;
     }
 
-    public Optional<Product> getProductById(Integer id) {
-        try (Connection connection = databaseService.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement(GET_PRODUCT_BY_ID)) {
-            preparedStatement.setInt(1, id);
-            ResultSet resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                Product product = parseProduct(resultSet);
-                return Optional.of(product);
-            }
+    public Optional<Product> getProductById(Long id) {
+        Connection connection = databaseService.getConnection();
+
+        try {
+            PreparedStatement getProductStatement = connection.prepareStatement(SQLQuery.GET_PRODUCT_BY_ID);
+            getProductStatement.setLong(1, id);
+            ResultSet resultSet = getProductStatement.executeQuery();
+            return parseProduct(resultSet);
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    public Boolean deleteProduct(Long id) {
+        Connection connection = databaseService.getConnection();
+
+        try {
+            PreparedStatement deleteProductStatement = connection.prepareStatement(SQLQuery.DELETE_PRODUCT);
+            deleteProductStatement.setLong(1, id);
+
+            return deleteProductStatement.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return false;
+        }
+    }
+
+    public Optional<Long> createProduct(Product product) {
+        Connection connection = databaseService.getConnection();
+        Long productId = null;
+
+        try{
+            PreparedStatement createProductStatement = connection.prepareStatement(SQLQuery.CREATE_PRODUCT, Statement.RETURN_GENERATED_KEYS);
+            createProductStatement.setString(1, product.getName());
+            createProductStatement.setDouble(2, product.getPrice());
+            createProductStatement.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
+            createProductStatement.executeUpdate();
+
+            ResultSet generatedKeys = createProductStatement.getGeneratedKeys();
+            if (generatedKeys.next()) {
+                productId = generatedKeys.getLong(1);
+            }
+            return Optional.of(productId);
+
+
+        } catch (SQLException e){
+            System.out.println(e.getMessage());
+            return Optional.empty();
+        }
+    }
+    public Boolean updateProduct(Product product) {
+        Connection connection = databaseService.getConnection();
+
+        try {
+            PreparedStatement getProductStatement = connection.prepareStatement(SQLQuery.UPDATE_PRODUCT);
+
+            getProductStatement.setString(1, product.getName());
+            getProductStatement.setDouble(2, product.getPrice());
+            getProductStatement.setLong(3, product.getId());
+            return getProductStatement.executeUpdate() > 0;
+        }catch (SQLException e){
+            System.out.println(e.getMessage());
+            return false;
+        }
+    }
+
+    private Optional<Product> parseProduct(ResultSet resultSet) throws SQLException {
+        if(resultSet.next()){
+            Product product = new Product();
+
+            product.setId(resultSet.getLong("id"));
+            product.setName(resultSet.getString("name"));
+            product.setPrice(resultSet.getDouble("price"));
+            product.setCreated(resultSet.getTimestamp("created"));
+            product.setUpdated(resultSet.getTimestamp("updated"));
+            return Optional.of(product);
         }
         return Optional.empty();
     }
 
-    public boolean createProduct(Product product) {
-        String[] generatedColumns = {"id", "created", "updated"};
-        try (Connection connection = databaseService.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement(CREATE_PRODUCT, generatedColumns)) {
-            preparedStatement.setString(1, product.getName());
-            preparedStatement.setDouble(2, product.getPrice());
-            Timestamp now = new Timestamp(System.currentTimeMillis());
-            preparedStatement.setTimestamp(3, now);
-            preparedStatement.setTimestamp(4, now);
-            int rowsAffected = preparedStatement.executeUpdate();
-            if (rowsAffected > 0) {
-                try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        product.setId(generatedKeys.getLong(1));
-                        product.setCreated(generatedKeys.getTimestamp(2));
-                        product.setUpdated(generatedKeys.getTimestamp(3));
-                    }
-                }
-            }
-            return rowsAffected > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    public boolean updateProduct(Product product) {
-        System.out.println("Preparing to update product in database. Product: " + product);
-        try (Connection connection = databaseService.getConnection();
-             PreparedStatement statement = connection.prepareStatement(UPDATE_PRODUCT)) {
-            statement.setString(1, product.getName());
-            statement.setDouble(2, product.getPrice());
-            statement.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
-            statement.setLong(4, product.getId());
-            int rowsUpdated = statement.executeUpdate();
-            System.out.println("Rows updated: " + rowsUpdated);
-            return rowsUpdated > 0;
-        } catch (SQLException e) {
-            System.out.println("SQL error: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
-    public boolean deleteProduct(Integer id) {
-        try (Connection connection = databaseService.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement(DELETE_PRODUCT)) {
-            preparedStatement.setInt(1, id);
-            return preparedStatement.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    public List<Product> getAllProducts() {
-        List<Product> products = new ArrayList<>();
-        try (Connection connection = databaseService.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement(GET_ALL_PRODUCTS);
-             ResultSet resultSet = preparedStatement.executeQuery()) {
-            while (resultSet.next()) {
-                Product product = parseProduct(resultSet);
-                products.add(product);
-                System.out.println("Product fetched: " + product);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        System.out.println("Total products fetched: " + products.size());
-        return products;
-    }
-    private Product parseProduct(ResultSet resultSet) throws SQLException {
-        return new Product(
-                resultSet.getLong("id"),
-                resultSet.getString("name"),
-                resultSet.getDouble("price"),
-                resultSet.getTimestamp("created"),
-                resultSet.getTimestamp("updated")
-        );
-    }
 }
